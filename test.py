@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from config import get_config
 from datasets.dataset_synapse import Synapse_dataset
-from networks.vision_transformer import SwinUnet as ViT_seg
+from model.vision_transformer import SwinUnet as ViT_seg
 from utils import test_single_volume
 
 parser = argparse.ArgumentParser()
