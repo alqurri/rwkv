@@ -1,5 +1,5 @@
 # RWKV-Unet
-The codes for the work "ENHANCED MEDICAL IMAGE SEGMENTATION USING RWKV AND CNN". I hope this will help you to reproduce the results.
+The codes for the work "Enhanced medical image segmentation using RWKV and CNN". I hope this will help you to reproduce the results.
 
 
 
