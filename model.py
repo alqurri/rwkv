@@ -60,9 +60,6 @@ def resize_pos_embed(pos_embed,
 
 # In[4]:
 
-
-# Copyright (c) Shanghai AI Lab. All rights reserved.
-
 from typing import Sequence
 import math, os
 
@@ -1918,37 +1915,5 @@ def test_single_volume(image, label, net, classes, patch_size=[256, 256], test_s
         sitk.WriteImage(img_itk, test_save_path + '/'+ case + "_img.nii.gz")
         sitk.WriteImage(lab_itk, test_save_path + '/'+ case + "_gt.nii.gz")
     return metric_list
-
-
-# In[9]:
-
-
-def muti_dice_loss_fusion(d1,d2,  d3,d4, labels_v,dice_loss):
-
-   
-    loss1 = dice_loss(d1,labels_v, softmax=True)
-    
-    loss3 = dice_loss(d3,labels_v, softmax=True)
-    loss4 = dice_loss(d4,labels_v, softmax=True)
-    
-    
-    loss = loss1 +  loss3+loss4  
-    
-    return loss
-
-def muti_bc_loss_fusion(d1, d2, d3,d4, y,ce_loss):
-
-   
-    loss1 = ce_loss(d1, y[:].long())
-   
-    loss3 = ce_loss(d3, y[:].long())
-    loss4 = ce_loss(d4, y[:].long())
-    
-    
-    loss = loss1 +  loss3+loss4   
-    
-    return loss
-
-
 
 
