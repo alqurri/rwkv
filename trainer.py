@@ -16,6 +16,32 @@ from utils import DiceLoss
 from torchvision import transforms
 from utils import test_single_volume
 
+def muti_dice_loss_fusion(d1,d2,  d3,d4, labels_v,dice_loss):
+
+   
+    loss1 = dice_loss(d1,labels_v, softmax=True)
+    
+    loss3 = dice_loss(d3,labels_v, softmax=True)
+    loss4 = dice_loss(d4,labels_v, softmax=True)
+    
+    
+    loss = loss1 +  loss3+  loss4    
+    
+    return loss#loss0, loss
+
+def muti_bc_loss_fusion(d1, d2, d3,d4, y,ce_loss):
+
+   
+    loss1 = ce_loss(d1, y[:].long())
+   
+    loss3 = ce_loss(d3, y[:].long())
+    loss4 = ce_loss(d4, y[:].long())
+    
+    
+    loss = loss1 +  loss3+  loss4   
+    
+    return loss#loss0, loss
+
 def trainer_synapse(args, model, snapshot_path):
     #from datasets.dataset_synapse import Synapse_dataset, RandomGenerator
     #logging.basicConfig(filename=snapshot_path + "/log.txt", level=logging.INFO,
