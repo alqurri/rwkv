@@ -83,7 +83,7 @@ T_MAX = 4096
 
 
 from torch.utils.cpp_extension import load
-wkv_cuda = load(name="wkv", sources=["/scratch/aqa6122/Vision-RWKV-master/classification/mae/vrwkv/cuda/wkv_op.cpp", "/scratch/aqa6122/Vision-RWKV-master/classification/mae/vrwkv/cuda/wkv_cuda.cu"],
+wkv_cuda = load(name="wkv", sources=["vrwkv/cuda/wkv_op.cpp", "vrwkv/cuda/wkv_cuda.cu"],
                 verbose=True, extra_cuda_cflags=['-res-usage', '--maxrregcount 60', '--use_fast_math', '-O3', '-Xptxas -O3', f'-DTmax={T_MAX}'])
 
 
