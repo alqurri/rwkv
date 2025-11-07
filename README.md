@@ -37,6 +37,13 @@ python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite
 * [TransUnet](https://github.com/Beckschen/TransUNet)
 * [SwinTransformer](https://github.com/microsoft/Swin-Transformer)
 
+## Acknowledgements
+This code base uses certain code blocks and helper functions from:
+* [TransUNet](https://github.com/Beckschen/TransUNet/tree/main)
+* [Swin-Unet](https://github.com/Beckschen/TransUNet/tree/main) 
+* [Vision-RWKV](https://github.com/OpenGVLab/Vision-RWKV)
+
+
 ## Citation
 
 ```bibtex
