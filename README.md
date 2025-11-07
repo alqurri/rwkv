@@ -1,4 +1,4 @@
-# RWKV-Unet
+# RWKVFuse
 The codes for the work "Enhanced medical image segmentation using RWKV and CNN". I hope this will help you to reproduce the results.
 
 
