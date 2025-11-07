@@ -1,326 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
-import os
-import random
-import h5py
-import numpy as np
-import torch
-from scipy import ndimage
-from scipy.ndimage.interpolation import zoom
-from torch.utils.data import Dataset
-
-
-def random_rot_flip(image, label):
-    k = np.random.randint(0, 4)
-    image = np.rot90(image, k)
-    label = np.rot90(label, k)
-    axis = np.random.randint(0, 2)
-    image = np.flip(image, axis=axis).copy()
-    label = np.flip(label, axis=axis).copy()
-    return image, label
-
-
-def random_rotate(image, label):
-    angle = np.random.randint(-20, 20)
-    image = ndimage.rotate(image, angle, order=0, reshape=False)
-    label = ndimage.rotate(label, angle, order=0, reshape=False)
-    return image, label
-
-
-class RandomGenerator(object):
-    def __init__(self, output_size):
-        self.output_size = output_size
-
-    def __call__(self, sample):
-        image, label = sample['image'], sample['label']
-
-        if random.random() > 0.5:
-            image, label = random_rot_flip(image, label)
-        elif random.random() > 0.5:
-            image, label = random_rotate(image, label)
-        x, y = image.shape
-        if x != self.output_size[0] or y != self.output_size[1]:
-            image = zoom(image, (self.output_size[0] / x, self.output_size[1] / y), order=3)  # why not 3?
-            label = zoom(label, (self.output_size[0] / x, self.output_size[1] / y), order=0)
-        image = torch.from_numpy(image.astype(np.float32)).unsqueeze(0)
-        label = torch.from_numpy(label.astype(np.float32))
-        sample = {'image': image, 'label': label.long()}
-        return sample
-
-
-class Synapse_dataset(Dataset):
-    def __init__(self, base_dir, list_dir, split, transform=None):
-        self.transform = transform  # using transform in torch!
-        self.split = split
-        self.sample_list = open(os.path.join(list_dir, self.split+'.txt')).readlines()
-        self.data_dir = base_dir
-
-    def __len__(self):
-        return len(self.sample_list)
-
-    def __getitem__(self, idx):
-        if self.split == "train":
-            slice_name = self.sample_list[idx].strip('\n')
-            data_path = os.path.join(self.data_dir, slice_name+'.npz')
-            data = np.load(data_path)
-            image, label = data['image'], data['label']
-        else:
-            vol_name = self.sample_list[idx].strip('\n')
-            filepath = self.data_dir + "/{}.npy.h5".format(vol_name)
-            data = h5py.File(filepath)
-            image, label = data['image'][:], data['label'][:]
-
-        sample = {'image': image, 'label': label}
-        if self.transform:
-            sample = self.transform(sample)
-        sample['case_name'] = self.sample_list[idx].strip('\n')
-        return sample
-
-
-# In[2]:
-
-
-import os
-import yaml
-from yacs.config import CfgNode as CN
-
-_C = CN()
-
-# Base config files
-_C.BASE = ['']
-
-# -----------------------------------------------------------------------------
-# Data settings
-# -----------------------------------------------------------------------------
-_C.DATA = CN()
-# Batch size for a single GPU, could be overwritten by command line argument
-_C.DATA.BATCH_SIZE = 128
-# Path to dataset, could be overwritten by command line argument
-_C.DATA.DATA_PATH = ''
-# Dataset name
-_C.DATA.DATASET = 'imagenet'
-# Input image size
-_C.DATA.IMG_SIZE = 224
-# Interpolation to resize image (random, bilinear, bicubic)
-_C.DATA.INTERPOLATION = 'bicubic'
-# Use zipped dataset instead of folder dataset
-# could be overwritten by command line argument
-_C.DATA.ZIP_MODE = False
-# Cache Data in Memory, could be overwritten by command line argument
-_C.DATA.CACHE_MODE = 'part'
-# Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.
-_C.DATA.PIN_MEMORY = True
-# Number of data loading threads
-_C.DATA.NUM_WORKERS = 8
-
-# -----------------------------------------------------------------------------
-# Model settings
-# -----------------------------------------------------------------------------
-_C.MODEL = CN()
-# Model type
-_C.MODEL.TYPE = 'swin'
-# Model name
-_C.MODEL.NAME = 'swin_tiny_patch4_window7_224'
-# Checkpoint to resume, could be overwritten by command line argument
-_C.MODEL.PRETRAIN_CKPT = '/scratch/aqa6122/swin_tiny_patch4_window7_224.pth'
-_C.MODEL.RESUME = ''
-# Number of classes, overwritten in data preparation
-_C.MODEL.NUM_CLASSES = 1000
-# Dropout rate
-_C.MODEL.DROP_RATE = 0.0
-# Drop path rate
-_C.MODEL.DROP_PATH_RATE = 0.1
-# Label Smoothing
-_C.MODEL.LABEL_SMOOTHING = 0.1
-
-# Swin Transformer parameters
-_C.MODEL.SWIN = CN()
-_C.MODEL.SWIN.PATCH_SIZE = 4
-_C.MODEL.SWIN.IN_CHANS = 3
-_C.MODEL.SWIN.EMBED_DIM = 96
-_C.MODEL.SWIN.DEPTHS =[2, 2, 2, 2] #[8, 8, 8, 8] #[12, 12, 12, 12]#[2, 2, 6, 2]
-_C.MODEL.SWIN.DECODER_DEPTHS = [2, 2, 6, 2]
-_C.MODEL.SWIN.NUM_HEADS = [3, 6, 12, 24]
-_C.MODEL.SWIN.WINDOW_SIZE = 7
-_C.MODEL.SWIN.MLP_RATIO = 4.
-_C.MODEL.SWIN.QKV_BIAS = True
-_C.MODEL.SWIN.QK_SCALE = None
-_C.MODEL.SWIN.APE = False
-_C.MODEL.SWIN.PATCH_NORM = True
-_C.MODEL.SWIN.FINAL_UPSAMPLE= "expand_first"
-
-# -----------------------------------------------------------------------------
-# Training settings
-# -----------------------------------------------------------------------------
-_C.TRAIN = CN()
-_C.TRAIN.START_EPOCH = 0
-_C.TRAIN.EPOCHS = 300
-_C.TRAIN.WARMUP_EPOCHS = 20
-_C.TRAIN.WEIGHT_DECAY = 0.05
-_C.TRAIN.BASE_LR = 5e-4
-_C.TRAIN.WARMUP_LR = 5e-7
-_C.TRAIN.MIN_LR = 5e-6
-# Clip gradient norm
-_C.TRAIN.CLIP_GRAD = 5.0
-# Auto resume from latest checkpoint
-_C.TRAIN.AUTO_RESUME = True
-# Gradient accumulation steps
-# could be overwritten by command line argument
-_C.TRAIN.ACCUMULATION_STEPS = 0
-# Whether to use gradient checkpointing to save memory
-# could be overwritten by command line argument
-_C.TRAIN.USE_CHECKPOINT = False
-
-# LR scheduler
-_C.TRAIN.LR_SCHEDULER = CN()
-_C.TRAIN.LR_SCHEDULER.NAME = 'cosine'
-# Epoch interval to decay LR, used in StepLRScheduler
-_C.TRAIN.LR_SCHEDULER.DECAY_EPOCHS = 30
-# LR decay rate, used in StepLRScheduler
-_C.TRAIN.LR_SCHEDULER.DECAY_RATE = 0.1
-
-# Optimizer
-_C.TRAIN.OPTIMIZER = CN()
-_C.TRAIN.OPTIMIZER.NAME = 'adamw'
-# Optimizer Epsilon
-_C.TRAIN.OPTIMIZER.EPS = 1e-8
-# Optimizer Betas
-_C.TRAIN.OPTIMIZER.BETAS = (0.9, 0.999)
-# SGD momentum
-_C.TRAIN.OPTIMIZER.MOMENTUM = 0.9
-
-# -----------------------------------------------------------------------------
-# Augmentation settings
-# -----------------------------------------------------------------------------
-_C.AUG = CN()
-# Color jitter factor
-_C.AUG.COLOR_JITTER = 0.4
-# Use AutoAugment policy. "v0" or "original"
-_C.AUG.AUTO_AUGMENT = 'rand-m9-mstd0.5-inc1'
-# Random erase prob
-_C.AUG.REPROB = 0.25
-# Random erase mode
-_C.AUG.REMODE = 'pixel'
-# Random erase count
-_C.AUG.RECOUNT = 1
-# Mixup alpha, mixup enabled if > 0
-_C.AUG.MIXUP = 0.8
-# Cutmix alpha, cutmix enabled if > 0
-_C.AUG.CUTMIX = 1.0
-# Cutmix min/max ratio, overrides alpha and enables cutmix if set
-_C.AUG.CUTMIX_MINMAX = None
-# Probability of performing mixup or cutmix when either/both is enabled
-_C.AUG.MIXUP_PROB = 1.0
-# Probability of switching to cutmix when both mixup and cutmix enabled
-_C.AUG.MIXUP_SWITCH_PROB = 0.5
-# How to apply mixup/cutmix params. Per "batch", "pair", or "elem"
-_C.AUG.MIXUP_MODE = 'batch'
-
-# -----------------------------------------------------------------------------
-# Testing settings
-# -----------------------------------------------------------------------------
-_C.TEST = CN()
-# Whether to use center crop when testing
-_C.TEST.CROP = True
-
-# -----------------------------------------------------------------------------
-# Misc
-# -----------------------------------------------------------------------------
-# Mixed precision opt level, if O0, no amp is used ('O0', 'O1', 'O2')
-# overwritten by command line argument
-_C.AMP_OPT_LEVEL = ''
-# Path to output folder, overwritten by command line argument
-_C.OUTPUT = ''
-# Tag of experiment, overwritten by command line argument
-_C.TAG = 'default'
-# Frequency to save checkpoint
-_C.SAVE_FREQ = 1
-# Frequency to logging info
-_C.PRINT_FREQ = 10
-# Fixed random seed
-_C.SEED = 0
-# Perform evaluation only, overwritten by command line argument
-_C.EVAL_MODE = False
-# Test throughput only, overwritten by command line argument
-_C.THROUGHPUT_MODE = False
-# local rank for DistributedDataParallel, given by command line argument
-_C.LOCAL_RANK = 0
-
-
-def _update_config_from_file(config, cfg_file):
-    config.defrost()
-    with open(cfg_file, 'r') as f:
-        yaml_cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    for cfg in yaml_cfg.setdefault('BASE', ['']):
-        if cfg:
-            _update_config_from_file(
-                config, os.path.join(os.path.dirname(cfg_file), cfg)
-            )
-    print('=> merge config from {}'.format(cfg_file))
-    config.merge_from_file(cfg_file)
-    config.freeze()
-
-
-def update_config(config, args):
-    #_update_config_from_file(config, args.cfg)
-
-    config.defrost()
-    #if args.opts:
-    #    config.merge_from_list(args.opts)
-
-    # merge from specific arguments
-    if args.batch_size:
-        config.DATA.BATCH_SIZE = args.batch_size
-    if args.zip:
-        config.DATA.ZIP_MODE = True
-    if args.cache_mode:
-        config.DATA.CACHE_MODE = args.cache_mode
-    if args.resume:
-        config.MODEL.RESUME = args.resume
-    if args.accumulation_steps:
-        config.TRAIN.ACCUMULATION_STEPS = args.accumulation_steps
-    if args.use_checkpoint:
-        config.TRAIN.USE_CHECKPOINT = True
-    if args.amp_opt_level:
-        config.AMP_OPT_LEVEL = args.amp_opt_level
-    if args.tag:
-        config.TAG = args.tag
-    if args.eval:
-        config.EVAL_MODE = True
-    if args.throughput:
-        config.THROUGHPUT_MODE = True
-
-    config.freeze()
-
-
-def get_config(args):
-    """Get a yacs CfgNode object with default values."""
-    # Return a clone so that the defaults will not be altered
-    # This is for the "local variable" use pattern
-    config = _C.clone()
-    update_config(config, args)
-
-    return config
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[3]:
 
 
 import warnings
@@ -330,11 +10,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#from mmcv.cnn import build_conv_layer, build_norm_layer
-#from mmcv.cnn.bricks.transformer import AdaptivePadding
-#from mmengine.model import BaseModule
-
-#from .helpers import to_2tuple
 
 
 def resize_pos_embed(pos_embed,
@@ -398,17 +73,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 import torch.utils.checkpoint as cp
 
-#from mmcv.runner.base_module import BaseModule, ModuleList
+
 
 import torch.nn as nn
-#from torch import ModuleList
-from timm.models.layers import to_2tuple
-#--------from mmcv.cnn.bricks.transformer import PatchEmbed
-#from mmcls.models.builder import BACKBONES
-#from mmcls.models.utils import resize_pos_embed
-#from mmcls.models.backbones.base_backbone import BaseBackbone
 
-#from vrwkv.utils import DropPath
+from timm.models.layers import to_2tuple
+
 
 logger = logging.getLogger(__name__)
 
@@ -1118,20 +788,16 @@ from scipy import ndimage
 logger = logging.getLogger(__name__)
 import torch.nn.functional as F
 import torch
-# import torch.nn as nn
+
 import torch.utils.checkpoint as checkpoint
 from einops import rearrange
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-#from segmentation_models_pytorch.unet.decoder import DecoderBlock, CenterBlock
-#---
-#from segmentation_models_pytorch.unet.decoder import DecoderBlock, CenterBlock
-#from segmentation_models_pytorch.decoders.unet import UnetDecoderBlock, UnetCenterBlock
+
 from segmentation_models_pytorch.decoders.unet.decoder import UnetDecoderBlock as DecoderBlock 
 from segmentation_models_pytorch.decoders.unet.decoder import UnetCenterBlock as CenterBlock
-#---
 
 from segmentation_models_pytorch.base import SegmentationHead
-#from .STCF import SCF_block, DAS_block
+
 from functools import partial
 
 nonlinearity = partial(F.relu, inplace=True)
@@ -1214,7 +880,7 @@ class UnetDecoder(nn.Module):
 
         #---------------------------------------
         # combine decoder keyword arguments
-        #----------kwargs = dict(use_batchnorm=use_batchnorm, attention_type=attention_type)
+        
         kwargs = dict(attention_type=attention_type)
         blocks = [
             DecoderBlock(in_ch, skip_ch, out_ch, **kwargs)
@@ -2145,7 +1811,6 @@ class SwinUnet(nn.Module):
 # In[7]:
 
 
-#!pip install segmentation_models_pytorch --upgrade
 
 
 # In[8]:
@@ -2262,337 +1927,28 @@ def muti_dice_loss_fusion(d1,d2,  d3,d4, labels_v,dice_loss):
 
    
     loss1 = dice_loss(d1,labels_v, softmax=True)
-    #loss2 = dice_loss(d2,labels_v, softmax=True)
+    
     loss3 = dice_loss(d3,labels_v, softmax=True)
     loss4 = dice_loss(d4,labels_v, softmax=True)
     
     
-    loss = loss1 +  loss3+loss4  #loss1 + loss2 +  loss3 + loss4  
+    loss = loss1 +  loss3+loss4  
     
-    return loss#loss0, loss
+    return loss
 
 def muti_bc_loss_fusion(d1, d2, d3,d4, y,ce_loss):
 
    
     loss1 = ce_loss(d1, y[:].long())
-   # loss2 = ce_loss(d2, y[:].long())
+   
     loss3 = ce_loss(d3, y[:].long())
     loss4 = ce_loss(d4, y[:].long())
     
     
-    loss = loss1 +  loss3+loss4  #loss1 + loss2+  loss3 + loss4 
+    loss = loss1 +  loss3+loss4   
     
-    return loss#loss0, loss
-
-
-# In[10]:
-
-
-import argparse
-import logging
-import os
-import random
-import sys
-import time
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-#from tensorboardX import SummaryWriter
-from torch.nn.modules.loss import CrossEntropyLoss
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-#from utils import DiceLoss
-from torchvision import transforms
-#from utils import test_single_volume
-
-def trainer_synapse(args, model, snapshot_path):
-    #from datasets.dataset_synapse import Synapse_dataset, RandomGenerator
-    #logging.basicConfig(filename=snapshot_path + "/log.txt", level=logging.INFO,
-    #                    format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
-    #logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    #logging.info(str(args))
-    base_lr = args.base_lr
-    num_classes = args.num_classes
-    batch_size = args.batch_size * args.n_gpu
-    # max_iterations = args.max_iterations
-    db_train = Synapse_dataset(base_dir=args.root_path, list_dir=args.list_dir, split="train",
-                               transform=transforms.Compose(
-                                   [RandomGenerator(output_size=[args.img_size, args.img_size])]))
-    print("The length of train set is: {}".format(len(db_train)))
-
-    def worker_init_fn(worker_id):
-        random.seed(args.seed + worker_id)
-
-    trainloader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True,
-                             worker_init_fn=worker_init_fn)
-    if args.n_gpu > 1:
-        model = nn.DataParallel(model)
-    model.train()
-    ce_loss = CrossEntropyLoss()
-    dice_loss = DiceLoss(num_classes)
-    optimizer = optim.SGD(model.parameters(), lr=base_lr, momentum=0.9, weight_decay=0.0001)
-    #writer = SummaryWriter(snapshot_path + '/log')
-    iter_num = 0
-    max_epoch = args.max_epochs
-    max_iterations = args.max_epochs * len(trainloader)  # max_epoch = max_iterations // len(trainloader) + 1
-    logging.info("{} iterations per epoch. {} max iterations ".format(len(trainloader), max_iterations))
-    best_performance = 0.0
-    iterator = tqdm(range(max_epoch), ncols=70)
-    for epoch_num in iterator:
-        for i_batch, sampled_batch in enumerate(trainloader):
-            image_batch, label_batch = sampled_batch['image'], sampled_batch['label']
-            image_batch, label_batch =image_batch.cuda(), label_batch.cuda()# image_batch.cpu(), label_batch.cpu() #
-            #outputs = model(image_batch)
-            #loss_ce = ce_loss(outputs, label_batch[:].long())
-            #loss_dice = dice_loss(outputs, label_batch, softmax=True)
-            d1, d2, d3,d4= model(image_batch)
-            
-            
-            loss_dice =muti_dice_loss_fusion(d1, d2, d3,d4,label_batch,dice_loss)
-        
-            loss_ce =  muti_bc_loss_fusion  (d1, d2, d3,d4, label_batch ,ce_loss) #ce_loss(d4, y[:].long())
-            
-            loss = 0.5 * loss_ce + 0.5 * loss_dice
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            lr_ = base_lr * (1.0 - iter_num / max_iterations) ** 0.9
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr_
-
-            iter_num = iter_num + 1
-            #writer.add_scalar('info/lr', lr_, iter_num)
-            #writer.add_scalar('info/total_loss', loss, iter_num)
-            #writer.add_scalar('info/loss_ce', loss_ce, iter_num)
-            if iter_num % 100 == 0:
-               print('iteration %d : loss : %f, Dice loss : %f, loss_ce: %f' % (iter_num, loss.item(),loss_dice.item(), loss_ce.item()))
-            '''
-            if iter_num % 20 == 0:
-                image = image_batch[1, 0:1, :, :]
-                image = (image - image.min()) / (image.max() - image.min())
-                writer.add_image('train/Image', image, iter_num)
-                outputs = torch.argmax(torch.softmax(outputs, dim=1), dim=1, keepdim=True)
-                writer.add_image('train/Prediction', outputs[1, ...] * 50, iter_num)
-                labs = label_batch[1, ...].unsqueeze(0) * 50
-                writer.add_image('train/GroundTruth', labs, iter_num)
-            '''
-        save_interval = 50  # int(max_epoch/6)
-        #'''
-        if True:#epoch_num > int(max_epoch / 2) and (epoch_num + 1) % save_interval == 0:
-            save_mode_path = os.path.join("/scratch/aqa6122/output/", 'my_model_epoch_' + str(epoch_num) + '.pth')
-            torch.save(model.state_dict(), save_mode_path)
-            print("save model to {}".format(save_mode_path))
-        '''
-        if epoch_num >= max_epoch - 1:
-            save_mode_path = os.path.join(snapshot_path, 'epoch_' + str(epoch_num) + '.pth')
-            torch.save(model.state_dict(), save_mode_path)
-            logging.info("save model to {}".format(save_mode_path))
-            iterator.close()
-            break
-        '''    
-
-    #writer.close()
-    return "Training Finished!"
-
-
-# In[ ]:
-
-
-import argparse
-import logging
-import os
-import random
-import numpy as np
-import torch
-import torch.backends.cudnn as cudnn
-import copy
-#from networks.vision_transformer import SwinUnet as ViT_seg
-#from trainer import trainer_synapse
-#from config import get_config
-'''
-parser = argparse.ArgumentParser()
-parser.add_argument('--root_path', type=str,
-                    default='../data/Synapse/train_npz', help='root dir for data')
-parser.add_argument('--dataset', type=str,
-                    default='Synapse', help='experiment_name')
-parser.add_argument('--list_dir', type=str,
-                    default='./lists/lists_Synapse', help='list dir')
-parser.add_argument('--num_classes', type=int,
-                    default=9, help='output channel of network')
-parser.add_argument('--output_dir', type=str, help='output dir')                   
-parser.add_argument('--max_iterations', type=int,
-                    default=30000, help='maximum epoch number to train')
-parser.add_argument('--max_epochs', type=int,
-                    default=150, help='maximum epoch number to train')
-parser.add_argument('--batch_size', type=int,
-                    default=24, help='batch_size per gpu')
-parser.add_argument('--n_gpu', type=int, default=1, help='total gpu')
-parser.add_argument('--deterministic', type=int,  default=1,
-                    help='whether use deterministic training')
-parser.add_argument('--base_lr', type=float,  default=0.01,
-                    help='segmentation network learning rate')
-parser.add_argument('--img_size', type=int,
-                    default=224, help='input patch size of network input')
-parser.add_argument('--seed', type=int,
-                    default=1234, help='random seed')
-parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='path to config file', )
-parser.add_argument(
-        "--opts",
-        help="Modify config options by adding 'KEY VALUE' pairs. ",
-        default=None,
-        nargs='+',
-    )
-parser.add_argument('--zip', action='store_true', help='use zipped dataset instead of folder dataset')
-parser.add_argument('--cache-mode', type=str, default='part', choices=['no', 'full', 'part'],
-                    help='no: no cache, '
-                            'full: cache all data, '
-                            'part: sharding the dataset into nonoverlapping pieces and only cache one piece')
-parser.add_argument('--resume', help='resume from checkpoint')
-parser.add_argument('--accumulation-steps', type=int, help="gradient accumulation steps")
-parser.add_argument('--use-checkpoint', action='store_true',
-                    help="whether to use gradient checkpointing to save memory")
-parser.add_argument('--amp-opt-level', type=str, default='O1', choices=['O0', 'O1', 'O2'],
-                    help='mixed precision opt level, if O0, no amp is used')
-parser.add_argument('--tag', help='tag of experiment')
-parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
-parser.add_argument('--throughput', action='store_true', help='Test throughput only')
-
-args = parser.parse_args()
-if args.dataset == "Synapse":
-    args.root_path = os.path.join(args.root_path, "train_npz")
-'''
-
-#----------------------------------------
-
-
-class Args:
-  root_path = '/scratch/aqa6122/project_TransUNet/data/Synapse/train_npz'
-  dataset = 'Synapse'
-  list_dir = '/scratch/aqa6122/project_TransUNet/TransUNet/lists/lists_Synapse'
-  num_classes = 9
-  output_dir ='/scratch/aqa6122/output'
-  max_iterations=30000
-  max_epochs=150
-  batch_size=8#24
-  n_gpu=1
-  deterministic=1
-  base_lr=  0.01
-  img_size= 224
-  seed=1234
-  cfg="FILE"
-  opts= None 
-  vit_name='R50-ViT-B_16'
-  n_skip=3  
-  vit_patches_size=16
-  zip=True  
-  cache_mode='part'
-  resume=False
-  accumulation_steps=False
-  use_checkpoint=False
-  amp_opt_level='O1'
-  tag=False
-  eval=False
-  throughput=False
-
-args=Args()
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-#------------------------------------------
+    return loss
 
 
 
-config = get_config(args)
-
-
-if __name__ == "__main__":
-    if not args.deterministic:
-        cudnn.benchmark = True
-        cudnn.deterministic = False
-    else:
-        cudnn.benchmark = False
-        cudnn.deterministic = True
-
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
-
-    dataset_name = args.dataset
-    dataset_config = {
-        'Synapse': {
-            'root_path': args.root_path,
-            'list_dir': '/scratch/aqa6122/project_TransUNet/TransUNet/lists/lists_Synapse',
-            'num_classes': 9,
-        },
-    }
-
-    if args.batch_size != 24 and args.batch_size % 6 == 0:
-        args.base_lr *= args.batch_size / 24
-    args.num_classes = dataset_config[dataset_name]['num_classes']
-    args.root_path = dataset_config[dataset_name]['root_path']
-    args.list_dir = dataset_config[dataset_name]['list_dir']
-
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-    net = SwinUnet(config, img_size=args.img_size, num_classes=args.num_classes).to(device)
-    net.load_from(config)
-    #model_initial = copy.deepcopy(net)
-    
-    
-    
-
-    trainer = {'Synapse': trainer_synapse,}
-    trainer[dataset_name](args, net, args.output_dir)
-    torch.save(net.state_dict(), '/scratch/aqa6122/my_swin_unet.pth')
-
-
-# In[ ]:
-
-
-def inference(args, model, test_save_path=None):
-    db_test = args.Dataset(base_dir=args.volume_path, split="test_vol", list_dir=args.list_dir)
-    testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=0)
-    print("{} test iterations per epoch".format(len(testloader)))
-    model.eval()
-    metric_list = 0.0
-    for i_batch, sampled_batch in tqdm(enumerate(testloader)):
-        h, w = sampled_batch["image"].size()[2:]
-        image, label, case_name = sampled_batch["image"], sampled_batch["label"], sampled_batch['case_name'][0]
-        metric_i = test_single_volume(image, label, model, classes=args.num_classes, patch_size=[args.img_size, args.img_size],
-                                      test_save_path=test_save_path, case=case_name, z_spacing=args.z_spacing)
-        metric_list += np.array(metric_i)
-        print('idx %d case %s mean_dice %f mean_hd95 %f' % (i_batch, case_name, np.mean(metric_i, axis=0)[0], np.mean(metric_i, axis=0)[1]))
-    metric_list = metric_list / len(db_test)
-    for i in range(1, args.num_classes):
-        print('Mean class %d mean_dice %f mean_hd95 %f' % (i, metric_list[i-1][0], metric_list[i-1][1]))
-    performance = np.mean(metric_list, axis=0)[0]
-    mean_hd95 = np.mean(metric_list, axis=0)[1]
-    print('Testing performance in best val model: mean_dice : %f mean_hd95 : %f' % (performance, mean_hd95))
-    return "Testing Finished!"
-
-
-# In[ ]:
-
-
-#inference(args, net, test_save_path)
-
-dataset_config = {
-        'Synapse': {
-            'Dataset': Synapse_dataset,
-            'volume_path': '/scratch/aqa6122/project_TransUNet/data/Synapse/test_vol_h5',
-            'list_dir': '/scratch/aqa6122/project_TransUNet/TransUNet/lists/lists_Synapse',
-            'num_classes': 9,
-            'z_spacing': 1,
-        },
-}
-dataset_name = args.dataset
-args.num_classes = dataset_config[dataset_name]['num_classes']
-args.volume_path = dataset_config[dataset_name]['volume_path']
-args.Dataset = dataset_config[dataset_name]['Dataset']
-args.list_dir = dataset_config[dataset_name]['list_dir']
-args.z_spacing = dataset_config[dataset_name]['z_spacing']
-args.is_pretrain = True
-
-inference(args, net, None)
 
