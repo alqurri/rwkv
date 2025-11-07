@@ -31,17 +31,12 @@ sh test.sh
 python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --is_saveni --volume_path your DATA_DIR --output_dir your OUT_DIR --max_epoch 150 --base_lr 0.05 --img_size 224 --batch_size 24
 ```
 
-
-
-## References
-* [TransUnet](https://github.com/Beckschen/TransUNet)
-* [SwinTransformer](https://github.com/microsoft/Swin-Transformer)
-
-## Acknowledgements
+## References and Acknowledgements
 This code base uses certain code blocks and helper functions from:
 * [TransUNet](https://github.com/Beckschen/TransUNet/tree/main)
 * [Swin-Unet](https://github.com/Beckschen/TransUNet/tree/main) 
 * [Vision-RWKV](https://github.com/OpenGVLab/Vision-RWKV)
+* [CoTrFuse](https://github.com/BinYCn/CoTrFuse)
 
 
 ## Citation
