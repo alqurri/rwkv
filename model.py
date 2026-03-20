@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 
 
@@ -763,9 +766,6 @@ class DAS_block(nn.Module):
 # coding=utf-8
 # double encoder CNN decoder
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import copy
 import logging
