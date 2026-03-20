@@ -13,21 +13,19 @@ The codes for the work "Enhanced medical image segmentation using RWKV and CNN".
 
 ## 4. Train/Test
 
-- Run the train script on synapse dataset. The batch size we used is 4. Use larger batch size if you have enough memory
+- Run the train script on synapse dataset. 
 
 - Train
 
 ```bash
-sh train.sh 
-# or 
-python train.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --root_path your DATA_DIR --max_epochs 150 --output_dir your OUT_DIR  --img_size 224 --base_lr 0.05 --batch_size 24
+
+python train.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --root_path  './project_TransUNet/data/Synapse/train_npz' --list_dir  './project_TransUNet/TransUNet/lists/lists_Synapse' --n_class  9 --max_epochs 150 --output_dir 'Your ouput dir'  --img_size 224 --base_lr 0.05 --batch_size 24
 ```
 
 - Test 
 
 ```bash
-sh test.sh 
-# or 
+ 
 python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --is_saveni --volume_path your DATA_DIR --output_dir your OUT_DIR --max_epoch 150 --base_lr 0.05 --img_size 224 --batch_size 24
 ```
 
