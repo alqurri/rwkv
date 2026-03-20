@@ -517,6 +517,7 @@ class VRWKV(nn.Module):
         
         x, patch_resolution = self.patch_embed(x)
         
+        
 
         x = x + resize_pos_embed(
             self.pos_embed,
