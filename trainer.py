@@ -15,7 +15,9 @@ from tqdm import tqdm
 from utils import DiceLoss
 from torchvision import transforms
 from utils import test_single_volume
-from dataset.Synapse_dataset import Synapse_dataset
+from dataset.dataset_synapse import Synapse_dataset
+
+from dataset.dataset_synapse import RandomGenerator
 
 def muti_dice_loss_fusion(d1,d2,  d3,d4, labels_v,dice_loss):
 
@@ -53,6 +55,7 @@ def trainer_synapse(args, model, snapshot_path):
     num_classes = args.num_classes
     batch_size = args.batch_size * args.n_gpu
     # max_iterations = args.max_iterations
+    
     db_train = Synapse_dataset(base_dir=args.root_path, list_dir=args.list_dir, split="train",
                                transform=transforms.Compose(
                                    [RandomGenerator(output_size=[args.img_size, args.img_size])]))

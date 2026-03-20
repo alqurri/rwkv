@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-from model.vision_transformer import SwinUnet as ViT_seg
+from model  import SwinUnet# as ViT_seg
 from trainer import trainer_synapse
 from config import get_config
 
@@ -60,8 +60,8 @@ parser.add_argument("--num_workers", default=8, type=int)
 parser.add_argument("--eval_interval", default=1, type=int)
 
 args = parser.parse_args()
-if args.dataset == "Synapse":
-    args.root_path = os.path.join(args.root_path, "train_npz")
+#if args.dataset == "Synapse":
+#    args.root_path = os.path.join(args.root_path, "train_npz")
 config = get_config(args)
 
 if __name__ == "__main__":
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     dataset_config = {
         args.dataset: {
             'root_path': args.root_path,
-            'list_dir': f'./lists/{args.dataset}',
+            'list_dir': args.list_dir,#f'./lists/{args.dataset}',
             'num_classes': args.n_class,
         },
     }
@@ -94,10 +94,11 @@ if __name__ == "__main__":
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-    net = ViT_seg(config, img_size=args.img_size, num_classes=args.num_classes).cuda()
+    net = SwinUnet(config, img_size=args.img_size, num_classes=args.num_classes).cuda()
     net.load_from(config)
 
     # trainer = {'Synapse': trainer_synapse}
+    
     trainer_synapse(args, net, args.output_dir)
 
 
