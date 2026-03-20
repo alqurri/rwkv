@@ -15,6 +15,7 @@ from tqdm import tqdm
 from utils import DiceLoss
 from torchvision import transforms
 from utils import test_single_volume
+from dataset.Synapse_dataset import Synapse_dataset
 
 def muti_dice_loss_fusion(d1,d2,  d3,d4, labels_v,dice_loss):
 
