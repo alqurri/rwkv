@@ -525,7 +525,7 @@ class VRWKV(nn.Module):
             patch_resolution,
             mode=self.interpolate_mode,
             num_extra_tokens=self.num_extra_tokens)
-        print("patch_resolution",patch_resolution)
+        
         x = x_mid#self.drop_after_pos(x)
         
 
