@@ -11,6 +11,7 @@ The codes for the work "Enhanced medical image segmentation using RWKV and CNN".
 
 - Please prepare an environment with python=3.7, and then use the command "pip install -r requirements.txt" for the dependencies.
 - Download [Vision-RWKV](https://github.com/OpenGVLab/Vision-RWKV) and place ./vrwkv/cuda/wkv_op.cpp and ./vrwkv/cuda/wkv_cuda.cu in the same directory.
+- Add ./pretrained_ckpt/swin_tiny_patch4_window7_224.pth
 
 ## 4. Train/Test
 
