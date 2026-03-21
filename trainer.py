@@ -118,7 +118,7 @@ def trainer_synapse(args, model, snapshot_path):
                 writer.add_image('train/GroundTruth', labs, iter_num)
             '''
         save_interval = 50  # int(max_epoch/6)
-        #'''
+        '''
         if True:#epoch_num > int(max_epoch / 2) and (epoch_num + 1) % save_interval == 0:
             save_mode_path = os.path.join("/scratch/aqa6122/output/", 'my_model_epoch_' + str(epoch_num) + '.pth')
             torch.save(model.state_dict(), save_mode_path)
@@ -127,10 +127,11 @@ def trainer_synapse(args, model, snapshot_path):
         if epoch_num >= max_epoch - 1:
             save_mode_path = os.path.join(snapshot_path, 'epoch_' + str(epoch_num) + '.pth')
             torch.save(model.state_dict(), save_mode_path)
-            logging.info("save model to {}".format(save_mode_path))
-            iterator.close()
-            break
-        '''    
+            print("save model to {}".format(save_mode_path))
+            #logging.info("save model to {}".format(save_mode_path))
+            #iterator.close()
+            #break
+        #'''    
 
     #writer.close()
     return "Training Finished!"
