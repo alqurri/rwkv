@@ -12,8 +12,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import get_config
-from datasets.dataset_synapse import Synapse_dataset
-from model.vision_transformer import SwinUnet as ViT_seg
+#from datasets.dataset_synapse import Synapse_dataset
+from dataset.dataset_synapse import Synapse_dataset
+
+from model import SwinUnet as ViT_seg
 from utils import test_single_volume
 
 parser = argparse.ArgumentParser()
@@ -26,6 +28,8 @@ parser.add_argument('--num_classes', type=int,
                     default=9, help='output channel of network')
 parser.add_argument('--list_dir', type=str,
                     default='./lists/lists_Synapse', help='list dir')
+parser.add_argument('--volume_path', type=str,
+                    default='./project_TransUNet/data/Synapse/test_vol_h5', help='volume_path')                    
 parser.add_argument('--output_dir', type=str, help='output dir')
 parser.add_argument('--max_iterations', type=int, default=30000, help='maximum epoch number to train')
 parser.add_argument('--max_epochs', type=int, default=150, help='maximum epoch number to train')
@@ -64,8 +68,8 @@ parser.add_argument("--split_name", default="test", help="Directory of the input
 
 args = parser.parse_args()
 
-if args.dataset == "Synapse":
-    args.volume_path = os.path.join(args.volume_path, "test_vol_h5")
+#if args.dataset == "Synapse":
+#    args.volume_path = os.path.join(args.volume_path, "test_vol_h5")
 config = get_config(args)
 
 
@@ -111,13 +115,13 @@ if __name__ == "__main__":
     dataset_config = {
         args.dataset: {
             'root_path': args.root_path,
-            'list_dir': f'./lists/{args.dataset}',
-            'num_classes': args.n_class,
+            'list_dir': args.list_dir,#f'./lists/{args.dataset}',
+            'num_classes': args.num_classes,
             "z_spacing": 1
         },
     }
     args.num_classes = dataset_config[dataset_name]['num_classes']
-    args.volume_path = dataset_config[dataset_name]['root_path']
+    #args.volume_path = dataset_config[dataset_name]['root_path']
     # args.Dataset = dataset_config[dataset_name]['Dataset']
     args.list_dir = dataset_config[dataset_name]['list_dir']
     args.z_spacing = dataset_config[dataset_name]['z_spacing']

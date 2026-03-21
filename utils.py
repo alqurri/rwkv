@@ -58,8 +58,16 @@ def calculate_metric_percase(pred, gt):
         return 0, 0
 
 
+def safe_squeeze(x):
+    x = x.cpu().detach().numpy()
+    while x.ndim > 0 and x.shape[0] == 1:
+        x = x.squeeze(0)
+    return x
+    
 def test_single_volume(image, label, net, classes, patch_size=[256, 256], test_save_path=None, case=None, z_spacing=1):
-    image, label = image.squeeze(0).cpu().detach().numpy().squeeze(0), label.squeeze(0).cpu().detach().numpy().squeeze(0)
+    #image, label = image.squeeze(0).cpu().detach().numpy().squeeze(0), label.squeeze(0).cpu().detach().numpy().squeeze(0)
+    image = safe_squeeze(image)
+    label = safe_squeeze(label)
     if len(image.shape) == 3:
         prediction = np.zeros_like(label)
         for ind in range(image.shape[0]):
@@ -70,7 +78,7 @@ def test_single_volume(image, label, net, classes, patch_size=[256, 256], test_s
             input = torch.from_numpy(slice).unsqueeze(0).unsqueeze(0).float().cuda()
             net.eval()
             with torch.no_grad():
-                outputs = net(input)
+                outputs ,_,_,_ = net(input)
                 out = torch.argmax(torch.softmax(outputs, dim=1), dim=1).squeeze(0)
                 out = out.cpu().detach().numpy()
                 if x != patch_size[0] or y != patch_size[1]:
