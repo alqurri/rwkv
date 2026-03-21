@@ -87,7 +87,7 @@ T_MAX = 4096
 
 from torch.utils.cpp_extension import load
 # rwk/Vision-RWKV-master/classification/mae/
-wkv_cuda = load(name="wkv", sources=["./vrwkv/cuda/wkv_op.cpp", "./vrwkv/cuda/wkv_cuda.cu"],
+wkv_cuda = load(name="wkv", sources=["/scratch/aqa6122/Vision-RWKV-master/classification/mae/vrwkv/cuda/wkv_op.cpp", "/scratch/aqa6122/Vision-RWKV-master/classification/mae/vrwkv/cuda/wkv_cuda.cu"],
                 verbose=True, extra_cuda_cflags=['-res-usage', '--maxrregcount 60', '--use_fast_math', '-O3', '-Xptxas -O3', f'-DTmax={T_MAX}'])
 
 
@@ -429,129 +429,7 @@ class Block_rwk(nn.Module):
         return x
 
 
-#@BACKBONES.register_module()
-class VRWKV(nn.Module):
-    def __init__(self,
-                 img_size=224,
-                 patch_size=16,
-                 in_channels=3,
-                 out_indices=-1,
-                 drop_rate=0.,
-                 embed_dims=256,
-                 depth=2,#96,#12,
-                 drop_path_rate=0.,
-                 channel_gamma=1/4,
-                 shift_pixel=1,
-                 shift_mode='q_shift',
-                 init_mode='fancy',
-                 post_norm=False,
-                 key_norm=False,
-                 init_values=None,
-                 hidden_rate=4,
-                 final_norm=True,
-                 interpolate_mode='bicubic',
-                 with_cp=False,
-                 init_cfg=None):
-        super().__init__()#init_cfg)
-        self.embed_dims = embed_dims
-        self.num_extra_tokens = 0
-        self.num_layers = depth
-        self.drop_path_rate = drop_path_rate
 
-        self.patch_embed = PatchEmbed(
-            in_channels=in_channels,
-            input_size=img_size,
-            embed_dims=self.embed_dims,
-            conv_type='Conv2d',
-            kernel_size=patch_size,
-            stride=patch_size,
-            bias=True)
-        
-        self.patch_resolution = self.patch_embed.init_out_size
-        num_patches = self.patch_resolution[0] * self.patch_resolution[1]
-
-        # Set position embedding
-        self.interpolate_mode = interpolate_mode
-        self.pos_embed = nn.Parameter(
-            torch.zeros(1, num_patches, self.embed_dims))
-        
-        self.drop_after_pos = nn.Dropout(p=drop_rate)
-
-        if isinstance(out_indices, int):
-            out_indices = [out_indices]
-        assert isinstance(out_indices, Sequence), \
-            f'"out_indices" must by a sequence or int, ' \
-            f'get {type(out_indices)} instead.'
-        for i, index in enumerate(out_indices):
-            if index < 0:
-                out_indices[i] = self.num_layers + index
-            assert 0 <= out_indices[i] <= self.num_layers, \
-                f'Invalid out_indices {index}'
-        self.out_indices = out_indices
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-        self.layers = nn.ModuleList()
-        for i in range(self.num_layers):
-            self.layers.append(Block_rwk(
-                n_embd=embed_dims,
-                n_layer=depth,
-                layer_id=i,
-                channel_gamma=channel_gamma,
-                shift_pixel=shift_pixel,
-                shift_mode=shift_mode,
-                hidden_rate=hidden_rate,
-                drop_path=dpr[i],
-                init_mode=init_mode,
-                post_norm=post_norm,
-                key_norm=key_norm,
-                init_values=init_values,
-                with_cp=with_cp
-            ))
-
-        self.final_norm = final_norm
-        if final_norm:
-            self.ln1 = nn.LayerNorm(self.embed_dims)
-
-
-    def forward(self, x,x_mid):
-        B = x.shape[0]
-        
-        x, patch_resolution = self.patch_embed(x)
-        
-        
-
-        x = x + resize_pos_embed(
-            self.pos_embed,
-            self.patch_resolution,
-            patch_resolution,
-            mode=self.interpolate_mode,
-            num_extra_tokens=self.num_extra_tokens)
-        print("patch_resolution",patch_resolution)
-        x = x_mid#self.drop_after_pos(x)
-        
-
-        outs = []
-        for i, layer in enumerate(self.layers):
-            
-            x = layer(x, patch_resolution)
-            
-            if i == len(self.layers) - 1 and self.final_norm:
-                x = self.ln1(x)
-                
-            '''  
-            if i in self.out_indices:
-                B, _, C = x.shape
-                patch_token = x.reshape(B, *patch_resolution, C)
-                patch_token = patch_token.permute(0, 3, 1, 2)
-
-                out = patch_token
-                outs.append(out)
-            '''
-        
-        return x#outs[-1]#tuple(outs)
-        
-
-
-# In[5]:
 
 
 import torch
