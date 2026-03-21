@@ -27,7 +27,7 @@ python train.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lit
 
 ```bash
  
-python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --is_saveni --volume_path your DATA_DIR --output_dir your OUT_DIR --max_epoch 150 --base_lr 0.05 --img_size 224 --batch_size 24
+python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --is_saveni --volume_path './project_TransUNet/data/Synapse/test_vol_h5' --list_dir  './project_TransUNet/TransUNet/lists/lists_Synapse' --output_dir 'Your ouput dir'  --num_classes 9 --split_name "test_vol" --max_epoch 150 --base_lr 0.05 --img_size 224 --batch_size 24
 ```
 
 ## References and Acknowledgements
